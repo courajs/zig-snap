@@ -5,10 +5,6 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const lib = b.addStaticLibrary("snap", "src/main.zig");
-    lib.setBuildMode(mode);
-    lib.install();
-
     var main_tests = b.addTest("src/main.zig");
     main_tests.setBuildMode(mode);
 
