@@ -1,5 +1,5 @@
 const std = @import("std");
-const testing = std.testing;
+const io = std.io;
 
 pub fn add(a: i32, b: i32) i32 {
     return a + b;
@@ -8,21 +8,49 @@ pub fn add(a: i32, b: i32) i32 {
 test "basic add functionality" {
     const t = std.testing;
 
-    var s = "hello\n";
-    // read this from a file
-    var buf = [_]u8{0} ** 16;
+    const value = "hello";
+    var input = std.io.fixedBufferStream(value);
+    var output = std.ArrayList(u8).init(t.allocator);
+    defer output.deinit();
 
     const dir_path = "/Users/outwards/dev/snap";
     var dir = try std.fs.openDirAbsolute(dir_path, .{});
     defer dir.close();
 
-    var file = try dir.openFile("thing.txt", .{});
-    defer file.close();
+    {
+        var file = try dir.createFile("thing.txt", .{});
+        defer file.close();
 
-    var len = try file.readAll(&buf);
+        _ = try pipeAll(100, input.reader(), file.writer());
+    }
 
-    var slicee: []const u8 = buf[0..len];
+    {
+        var file = try dir.openFile("thing.txt", .{});
+        defer file.close();
+        _ = try pipeAll(100, file.reader(), output.writer());
+    }
 
-    try t.expectEqual(len, 6);
-    try t.expectEqualStrings(slicee, s);
+    try t.expectEqualStrings(value, output.items);
+}
+
+fn pipeAll(comptime buf_size: comptime_int, r: anytype, w: anytype) !usize {
+    var buf: [buf_size]u8 = undefined;
+    var read: usize = 0;
+    var written: usize = 0;
+    var total_read: usize = 0;
+    var total_written: usize = 0;
+
+    while (true) {
+        written = 0;
+        read = try r.read(&buf);
+        total_read += read;
+        if (read == 0) {
+            break;
+        }
+        while (written < read) {
+            written += try w.write(buf[written..read]);
+        }
+        total_written += written;
+    }
+    return total_written;
 }
