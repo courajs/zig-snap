@@ -8,11 +8,6 @@ pub fn add(a: i32, b: i32) i32 {
 test "basic add functionality" {
     const t = std.testing;
 
-    const value = "hello";
-    var input = std.io.fixedBufferStream(value);
-    var output = std.ArrayList(u8).init(t.allocator);
-    defer output.deinit();
-
     const dir_path = "/Users/outwards/dev/snap";
     var dir = try std.fs.openDirAbsolute(dir_path, .{});
     defer dir.close();
@@ -20,17 +15,18 @@ test "basic add functionality" {
     {
         var file = try dir.createFile("thing.txt", .{});
         defer file.close();
-
-        _ = try pipeAll(100, input.reader(), file.writer());
+        try file.writeAll("hello");
     }
 
     {
         var file = try dir.openFile("thing.txt", .{});
         defer file.close();
-        _ = try pipeAll(100, file.reader(), output.writer());
-    }
 
-    try t.expectEqualStrings(value, output.items);
+        var contents = try file.readToEndAlloc(t.allocator, 10);
+        defer t.allocator.free(contents);
+
+        try t.expectEqualStrings(contents, "hello");
+    }
 }
 
 fn pipeAll(comptime buf_size: comptime_int, r: anytype, w: anytype) !usize {
